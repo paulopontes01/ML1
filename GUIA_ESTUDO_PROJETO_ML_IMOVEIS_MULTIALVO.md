@@ -265,6 +265,71 @@ Justificativa:
 
 O volume de contatos é assimétrico. Poucos imóveis concentram muitos contatos. `log1p` reduz o impacto desses extremos durante o treino.
 
+### 10.1 Análise do desbalanceamento de classes
+
+Esta subseção analisa a proporção entre as classes do alvo `sucesso_comercial`.
+
+As classes são:
+
+```text
+0 = Não sucesso
+1 = Sucesso
+```
+
+O objetivo é responder:
+
+```text
+Temos uma quantidade parecida de exemplos de sucesso e não sucesso?
+```
+
+### Por que essa análise é importante
+
+Se uma classe for muito maior que a outra, o modelo pode parecer bom mesmo sem aprender o padrão real.
+
+Exemplo:
+
+```text
+90% dos imóveis = Não sucesso
+10% dos imóveis = Sucesso
+```
+
+Um modelo que prevê sempre `Não sucesso` teria 90% de acurácia, mas seria inútil para encontrar imóveis com chance de sucesso comercial.
+
+Por isso, a seção mostra:
+
+- Quantidade de imóveis por classe.
+- Percentual por classe.
+- Gráfico de barras.
+- Gráfico de pizza.
+- Razão entre maior e menor classe.
+
+### Como interpretar a razão entre classes
+
+Exemplo:
+
+```text
+Razão 1.2:1
+```
+
+Significa que a maior classe tem 1,2 vezes o tamanho da menor. Isso indica baixo desbalanceamento.
+
+Exemplo mais crítico:
+
+```text
+Razão 5:1
+```
+
+Significa que uma classe tem cinco vezes mais exemplos que a outra. Nesse caso, o modelo pode tender a favorecer a classe majoritária.
+
+### Decisões justificadas por essa análise
+
+Essa seção ajuda a justificar:
+
+- Uso de `stratify=y` no `train_test_split`.
+- Uso de `class_weight="balanced"` nos modelos de classificação.
+- Uso de métricas como `precision`, `recall`, `F1` e `AUC-ROC`.
+- Cuidado ao interpretar acurácia isoladamente.
+
 ## 11. EDA orientada aos alvos
 
 ### O que esta seção faz
@@ -364,6 +429,148 @@ Por isso, o notebook compara:
 - `Recall`: dos sucessos reais, quantos o modelo encontrou.
 - `F1`: equilíbrio entre precision e recall.
 
+### 13.1 Avaliação gráfica do modelo final de sucesso comercial
+
+Esta subseção adiciona dois gráficos importantes:
+
+- Curva ROC.
+- Matriz de confusão.
+
+Ela também imprime o `classification_report` do modelo final.
+
+### O que é Curva ROC
+
+A Curva ROC mostra a relação entre:
+
+- Taxa de verdadeiros positivos.
+- Taxa de falsos positivos.
+
+Ela avalia se o modelo consegue separar bem imóveis de sucesso e não sucesso em diferentes thresholds.
+
+No gráfico, existe uma linha diagonal pontilhada que representa um modelo aleatório.
+
+Interpretação:
+
+```text
+Curva mais distante da diagonal = melhor separação.
+Curva próxima da diagonal = desempenho parecido com aleatório.
+```
+
+### O que é AUC-ROC
+
+`AUC` é a área abaixo da Curva ROC.
+
+Interpretação simplificada:
+
+```text
+AUC = 0.50 -> aleatório
+AUC = 0.70 -> razoável
+AUC = 0.80 -> bom
+AUC = 0.90 -> excelente
+```
+
+No projeto, usamos AUC porque ela avalia a capacidade de ranqueamento do modelo, não apenas uma decisão fixa de `0` ou `1`.
+
+### O que é Matriz de Confusão
+
+A matriz de confusão mostra quatro tipos de resultado:
+
+| Tipo | Significado |
+|---|---|
+| Verdadeiro negativo | Modelo previu não sucesso e acertou |
+| Falso positivo | Modelo previu sucesso, mas errou |
+| Falso negativo | Modelo previu não sucesso, mas era sucesso |
+| Verdadeiro positivo | Modelo previu sucesso e acertou |
+
+### Por que a matriz é importante
+
+Ela mostra o tipo de erro que o modelo comete.
+
+Para a imobiliária:
+
+- Falso positivo: priorizar um imóvel que não teria sucesso.
+- Falso negativo: deixar de priorizar um imóvel que teria sucesso.
+
+Dependendo da estratégia comercial, um tipo de erro pode ser mais caro que o outro.
+
+### 13.2 Curva Precision-Recall do modelo final
+
+Esta subseção mostra o trade-off entre `precision` e `recall`.
+
+Ela é útil para responder:
+
+```text
+Se eu quiser capturar mais imóveis de sucesso, quanto perco em precisão?
+```
+
+### O que é Precision
+
+Precision responde:
+
+```text
+Dos imóveis que o modelo marcou como sucesso, quantos realmente eram sucesso?
+```
+
+Exemplo:
+
+```text
+Modelo marcou 10 imóveis como sucesso.
+7 realmente foram sucesso.
+Precision = 70%
+```
+
+### O que é Recall
+
+Recall responde:
+
+```text
+Dos imóveis que realmente foram sucesso, quantos o modelo conseguiu encontrar?
+```
+
+Exemplo:
+
+```text
+Existiam 10 imóveis de sucesso.
+O modelo encontrou 8.
+Recall = 80%
+```
+
+### O que é threshold
+
+O modelo gera uma probabilidade, por exemplo:
+
+```text
+prob_sucesso_comercial = 0.62
+```
+
+O threshold define a partir de qual probabilidade o modelo classifica como sucesso.
+
+Exemplo:
+
+```text
+threshold = 0.50
+probabilidade >= 0.50 -> Sucesso
+probabilidade < 0.50 -> Não sucesso
+```
+
+O notebook compara thresholds como `0.3`, `0.5` e `0.7`.
+
+### Como interpretar thresholds
+
+Threshold menor:
+
+- Mais imóveis classificados como sucesso.
+- Recall tende a subir.
+- Precision pode cair.
+
+Threshold maior:
+
+- Menos imóveis classificados como sucesso.
+- Precision tende a subir.
+- Recall pode cair.
+
+Isso ajuda a adaptar o modelo ao objetivo da imobiliária.
+
 ## 14. Modelo 2 - Volume de contatos
 
 ### O que esta seção faz
@@ -447,6 +654,71 @@ Ajuste feito:
 - Ele serve como comparação mínima.
 - O modelo final de volume é escolhido apenas entre modelos reais: `Ridge`, `RandomForestRegressor` e `GradientBoostingRegressor`.
 
+### 14.1 Avaliação gráfica do modelo final de volume
+
+Esta subseção adiciona dois gráficos para avaliar a regressão:
+
+- Real vs. previsto.
+- Resíduos.
+
+### O que é o gráfico real vs. previsto
+
+Ele compara o volume real de contatos com o volume previsto pelo modelo.
+
+Eixo X:
+
+```text
+Contatos reais
+```
+
+Eixo Y:
+
+```text
+Contatos previstos
+```
+
+A linha diagonal representa a previsão perfeita.
+
+Interpretação:
+
+- Pontos próximos da diagonal: boas previsões.
+- Pontos muito acima da diagonal: modelo superestimou contatos.
+- Pontos muito abaixo da diagonal: modelo subestimou contatos.
+
+### O que são resíduos
+
+Resíduo é o erro da previsão.
+
+No notebook:
+
+```text
+resíduo = volume_real - volume_previsto
+```
+
+Exemplo:
+
+```text
+volume_real = 20
+volume_previsto = 15
+resíduo = 5
+```
+
+O modelo subestimou em 5 contatos.
+
+### Por que o gráfico de resíduos é útil
+
+Ele mostra se o erro está distribuído de forma aceitável ou se existe padrão.
+
+Se os erros aumentam muito para imóveis com volume alto, significa que o modelo tem dificuldade justamente nos imóveis mais procurados.
+
+Isso é esperado em parte, porque poucos imóveis concentram muitos contatos.
+
+### Por que mostrar a tabela dos maiores volumes reais
+
+A tabela ordenada por `volume_real` ajuda a verificar como o modelo se comporta nos imóveis mais difíceis: aqueles que realmente receberam muitos contatos.
+
+Essa tabela é útil para apresentação porque mostra casos concretos, não apenas métricas agregadas.
+
 ## 15. Análise dos melhores modelos
 
 ### O que esta seção faz
@@ -498,6 +770,39 @@ score_volume_contatos = 20 / 40 = 0.5
 ```
 
 Essa normalização permite combinar volume com probabilidade no mesmo score.
+
+### 16.1 Resumo quantitativo para apresentação
+
+Esta subseção resume os resultados em linguagem mais adequada para apresentação.
+
+Ela mostra:
+
+- Métricas do modelo final de sucesso comercial no teste.
+- Tabela de métricas dos modelos de regressão.
+- Top 10 imóveis ativos por `score_priorizacao`.
+- Resumo geral do ranking.
+
+### Por que essa seção é importante
+
+Durante a apresentação, não basta mostrar código. É preciso traduzir os resultados para decisões.
+
+Essa seção responde perguntas como:
+
+- Qual modelo foi escolhido?
+- Qual foi o desempenho no teste?
+- Quantos imóveis ativos foram avaliados?
+- Qual é a média de probabilidade de sucesso no ranking?
+- Quais imóveis aparecem no topo?
+
+### Como usar essa seção na fala
+
+Uma forma simples de explicar:
+
+```text
+Depois de treinar e avaliar os modelos, aplicamos o pipeline aos imóveis ativos.
+O ranking final combina chance de sucesso comercial e volume previsto de contatos.
+Essa tabela mostra quais imóveis devem ser analisados primeiro pela equipe comercial.
+```
 
 ## 17. Persistência dos modelos e exportação
 
@@ -722,3 +1027,55 @@ Porque não é possível associá-los com segurança a um imóvel específico.
 ### 27. O que poderia melhorar o projeto?
 
 Adicionar data de fechamento, aumentar a base histórica, validar o ranking com a equipe comercial e acompanhar novos imóveis e contatos.
+
+### 28. Por que analisar desbalanceamento de classes?
+
+Porque, se uma classe for muito maior que a outra, o modelo pode parecer bom apenas prevendo a classe majoritária. A análise mostra se precisamos ter cuidado extra com métricas e divisão treino/teste.
+
+### 29. Por que não usar só acurácia?
+
+Porque acurácia pode ser enganosa em bases desbalanceadas. Um modelo pode acertar muitos casos da classe majoritária e ainda assim ser ruim para encontrar imóveis com sucesso comercial.
+
+### 30. O que a Curva ROC mostra?
+
+Mostra a capacidade do modelo de separar imóveis de sucesso e não sucesso em diferentes thresholds. Quanto mais distante da linha diagonal aleatória, melhor.
+
+### 31. O que é AUC-ROC?
+
+É a área abaixo da Curva ROC. Mede a capacidade de ranqueamento do modelo. Valor próximo de 0,5 é aleatório; valores mais próximos de 1 indicam melhor separação.
+
+### 32. O que a matriz de confusão mostra?
+
+Mostra acertos e erros do modelo: verdadeiros positivos, falsos positivos, verdadeiros negativos e falsos negativos.
+
+### 33. Qual erro é pior: falso positivo ou falso negativo?
+
+Depende da estratégia. Falso positivo faz a equipe priorizar um imóvel que talvez não feche. Falso negativo faz a equipe deixar de priorizar um imóvel que poderia fechar.
+
+### 34. O que a Curva Precision-Recall mostra?
+
+Mostra o equilíbrio entre precisão e recall. Ela ajuda a escolher se queremos priorizar mais imóveis com risco de errar mais, ou poucos imóveis com maior confiança.
+
+### 35. O que é threshold?
+
+É o corte de probabilidade usado para transformar previsão em classe. Por exemplo, com threshold 0,5, imóveis com probabilidade maior ou igual a 0,5 são classificados como sucesso.
+
+### 36. Por que testar thresholds diferentes?
+
+Porque a decisão comercial pode exigir mais recall ou mais precision. Threshold menor tende a capturar mais imóveis de sucesso; threshold maior tende a ser mais seletivo.
+
+### 37. O que é gráfico real vs. previsto na regressão?
+
+É um gráfico que compara contatos reais com contatos previstos. Quanto mais perto os pontos ficam da diagonal, melhor o modelo está prevendo.
+
+### 38. O que são resíduos?
+
+Resíduos são os erros da regressão. No notebook, `resíduo = volume_real - volume_previsto`.
+
+### 39. Para que serve o gráfico de resíduos?
+
+Ele mostra se o erro tem algum padrão. Se os erros aumentam muito para imóveis com maior volume, o modelo tem dificuldade nos imóveis mais procurados.
+
+### 40. Por que incluir o resumo quantitativo para apresentação?
+
+Porque ele transforma métricas e previsões em uma leitura de negócio: modelo escolhido, desempenho no teste, Top 10 imóveis ativos e indicadores gerais do ranking.
